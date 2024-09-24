@@ -7,5 +7,14 @@
 
 import Foundation
 
-print("Hello, World!")
+let borrowerEngine = BorrowerEngine()
+let bookEngine = BookEngine()
+let inputReader = InputReader(borrowerEngine: borrowerEngine,
+                              bookEngine: bookEngine)
 
+// getInput returns a bool representing if the app should continue
+while (true) {
+    if !inputReader.getInput() {
+        exit(0)
+    }
+}
