@@ -12,9 +12,13 @@ let bookEngine = BookEngine()
 let inputReader = InputReader(borrowerEngine: borrowerEngine,
                               bookEngine: bookEngine)
 
+// Ping to redis to validate connection
+RedisClient.shared.ping()
+
 // getInput returns a bool representing if the app should continue
 while (true) {
-    if !inputReader.getInput() {
+    let input = await inputReader.getInputAndRespond()
+    if !input {
         exit(0)
     }
 }

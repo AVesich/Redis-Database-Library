@@ -6,9 +6,9 @@
 //
 
 protocol Engine {
-    var commands: [String : Int] { get } // Command : min(# args)
+    var commands: [String : Command] { get } // Command : min(# args)
     
-    func getResult(for command: String) -> String?
+    func getResult(for command: String, with args: [String]) async -> String?
 }
 
 extension Engine {

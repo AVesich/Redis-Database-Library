@@ -45,7 +45,7 @@ struct InputReader {
     
     // MARK: - Methods
     // Gets command line input and prints a warning if
-    func getInput() -> Bool {
+    func getInputAndRespond() async -> Bool {
         // Validate input was obtained & we have args beyond the command
         let input = readLine()
         guard input != nil,
@@ -53,30 +53,28 @@ struct InputReader {
             if input == "q" {
                 return false
             }
-            printFail()
+            print("Please provide a valid input.\n")
             return true
         }
         
-        let command = input!.split(separator: " ")[0...1].joined(separator: " ") // Get the first 2 words of the input as the input command
-        if !executeCommand(command) {
-            printFail()
-        }
+        let splitInput = input!.split(separator: " ")
+        let command = splitInput[0...1].joined(separator: " ") // Get the first 2 words of the input as the input command
+        let args = splitInput[2...].map { String($0) }
+
+        let executionResult = await executeCommand(command, args)
+        print(executionResult ?? "The operation failed.\n")
         
         return true
-        
-        func printFail() {
-            print("Please provide a valid input.\n")
-        }
     }
     
     // Tries to execute command, returns success value
-    func executeCommand(_ command: String) -> Bool { // Return success
+    private func executeCommand(_ command: String, _ args: [String]) async -> String? { // Return success
         if command.contains("book") || command == "borrower of" {
-            return bookEngine.getResult(for: command) != nil
+            return await bookEngine.getResult(for: command, with: args)
         } else if command.contains("borrower") || command == "borrowed by" {
-            return borrowerEngine.getResult(for: command) != nil
+            return await borrowerEngine.getResult(for: command, with: args)
         } else {
-            return false
+            return nil
         }
     }
 }

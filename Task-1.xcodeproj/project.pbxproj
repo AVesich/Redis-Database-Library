@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D9BEEE622CA5EA3C0045B0B0 /* SwiftRedis in Frameworks */ = {isa = PBXBuildFile; productRef = D9BEEE612CA5EA3C0045B0B0 /* SwiftRedis */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXCopyFilesBuildPhase section */
 		D9C48B412CA3484200290150 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -19,7 +23,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		D9C48B432CA3484200290150 /* Advanced Databases Shell */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "Advanced Databases Shell"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9C48B432CA3484200290150 /* Task 1 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "Task 1"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +39,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D9BEEE622CA5EA3C0045B0B0 /* SwiftRedis in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,7 +57,7 @@
 		D9C48B442CA3484200290150 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D9C48B432CA3484200290150 /* Advanced Databases Shell */,
+				D9C48B432CA3484200290150 /* Task 1 */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,9 +65,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D9C48B422CA3484200290150 /* Advanced Databases Shell */ = {
+		D9C48B422CA3484200290150 /* Task 1 */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D9C48B4A2CA3484200290150 /* Build configuration list for PBXNativeTarget "Advanced Databases Shell" */;
+			buildConfigurationList = D9C48B4A2CA3484200290150 /* Build configuration list for PBXNativeTarget "Task 1" */;
 			buildPhases = (
 				D9C48B3F2CA3484200290150 /* Sources */,
 				D9C48B402CA3484200290150 /* Frameworks */,
@@ -75,11 +80,12 @@
 			fileSystemSynchronizedGroups = (
 				D9C48B452CA3484200290150 /* Advanced Databases Shell */,
 			);
-			name = "Advanced Databases Shell";
+			name = "Task 1";
 			packageProductDependencies = (
+				D9BEEE612CA5EA3C0045B0B0 /* SwiftRedis */,
 			);
 			productName = "Advanced Databases Shell";
-			productReference = D9C48B432CA3484200290150 /* Advanced Databases Shell */;
+			productReference = D9C48B432CA3484200290150 /* Task 1 */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -97,7 +103,7 @@
 					};
 				};
 			};
-			buildConfigurationList = D9C48B3E2CA3484200290150 /* Build configuration list for PBXProject "Advanced Databases Shell" */;
+			buildConfigurationList = D9C48B3E2CA3484200290150 /* Build configuration list for PBXProject "Task-1" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -106,12 +112,15 @@
 			);
 			mainGroup = D9C48B3A2CA3484200290150;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D9BEEE602CA5EA3C0045B0B0 /* XCRemoteSwiftPackageReference "Kitura-redis" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D9C48B442CA3484200290150 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D9C48B422CA3484200290150 /* Advanced Databases Shell */,
+				D9C48B422CA3484200290150 /* Task 1 */,
 			);
 		};
 /* End PBXProject section */
@@ -270,7 +279,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		D9C48B3E2CA3484200290150 /* Build configuration list for PBXProject "Advanced Databases Shell" */ = {
+		D9C48B3E2CA3484200290150 /* Build configuration list for PBXProject "Task-1" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D9C48B482CA3484200290150 /* Debug */,
@@ -279,7 +288,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D9C48B4A2CA3484200290150 /* Build configuration list for PBXNativeTarget "Advanced Databases Shell" */ = {
+		D9C48B4A2CA3484200290150 /* Build configuration list for PBXNativeTarget "Task 1" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D9C48B4B2CA3484200290150 /* Debug */,
@@ -289,6 +298,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D9BEEE602CA5EA3C0045B0B0 /* XCRemoteSwiftPackageReference "Kitura-redis" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Kitura/Kitura-redis.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.1.200;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D9BEEE612CA5EA3C0045B0B0 /* SwiftRedis */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D9BEEE602CA5EA3C0045B0B0 /* XCRemoteSwiftPackageReference "Kitura-redis" */;
+			productName = SwiftRedis;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D9C48B3B2CA3484200290150 /* Project object */;
 }
