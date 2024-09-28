@@ -34,7 +34,7 @@ struct BorrowerEngine: Engine {
         }
         
         let borrower = Borrower(args: args)
-        let success = await RedisClient.shared.storeObject(withName: "borrower-\(args[1])", andData: borrower.pairs) // borrower-<username> is the key
+        let success = await RedisClient.shared.storeObject(withKey: "borrower-\(args[1])", andData: borrower.pairs) // borrower-<username> is the key
         
         return success ? "Borrower added successfully!" : "Adding borrower failed! Make sure a borrower with this username doesn't already exist."
     }

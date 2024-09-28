@@ -25,7 +25,7 @@ struct InputReader {
         print("\nBooks *****************************************************************************************")
         print("Adding books:\t\t\t\t \"add book <book name> <authors (comma separated)> <ISBN> <# of pages>\"")
         print("Removing books:\t\t\t\t \"rm book <ISBN>\"")
-        print("Edit books:\t\t\t\t\t \"edit book <ISBN> <new name> <new authors (comma separated)> <new ISBN (optional)> <# of pages (optional)>\"")
+        print("Edit books:\t\t\t\t\t \"edit book <ISBN> <new name> <new authors (comma separated)> <new ISBN> <new # of pages>\"")
         
         print("\nQuerying Books ********************************************************************************")
         print("Search for books:\t\t\t \"search books <search type (name, author, isbn)> <query>\"")
