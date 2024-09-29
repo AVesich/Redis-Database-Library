@@ -19,4 +19,15 @@ struct Book {
     var authors: [String] {
         Array(args[1..<args.count-2])
     }
+    
+    init(args: [String]) {
+        self.args = args
+    }
+    
+    init(editArgs: [String]) { // When editing, isbn is the first arg. Here, we reorder the args to be name, authors, isbn, pages
+        let isbn = editArgs.first!
+        var afterFirst = editArgs.dropFirst()
+        afterFirst.insert(isbn, at: afterFirst.count)
+        self.args = Array(afterFirst)
+    }
 }

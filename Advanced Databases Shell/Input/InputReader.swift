@@ -25,7 +25,7 @@ struct InputReader {
         print("\nBooks *****************************************************************************************")
         print("Adding books:\t\t\t\t \"add book <book name> <authors (comma separated)> <ISBN> <# of pages>\"")
         print("Removing books:\t\t\t\t \"rm book <ISBN>\"")
-        print("Edit books:\t\t\t\t\t \"edit book <ISBN> <new name> <new authors (comma separated)> <new ISBN> <new # of pages>\"")
+        print("Edit books:\t\t\t\t\t \"edit book <ISBN> <new name> <new authors (comma separated)> <new # of pages>\"")
         
         print("\nQuerying Books ********************************************************************************")
         print("Search for books:\t\t\t \"search books <search type (name, author, isbn)> <query>\"")
@@ -34,7 +34,7 @@ struct InputReader {
         print("\nBorrowing *************************************************************************************")
         print("Add Borrower:\t\t\t\t \"add borrower <name> <username> <phone>\"")
         print("Delete Borrower:\t\t\t \"rm borrower <username>\"")
-        print("Edit Borrower:\t\t\t\t \"edit borrower <username> <new name> <new username> <new phone>\"")
+        print("Edit Borrower:\t\t\t\t \"edit borrower <username> <new name> <new phone>\"")
         print("Checkout:\t\t\t\t\t \"checkout book <isbn> <borrower username>\"")
         print("View book's borrower:\t\t \"borrower of <isbn>\"")
         print("View # of borrower's books:\t \"borrowed by <username>\"")

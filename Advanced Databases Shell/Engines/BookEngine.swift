@@ -22,7 +22,7 @@ struct BookEngine: Engine {
     internal var commands: [String : Command] {[
         "add book" : Command(maxArgs: 4, handler: addBook),
         "rm book" : Command(maxArgs: 1, handler: removeBook),
-        "edit book" : Command(maxArgs: 5, handler: editBook),
+        "edit book" : Command(maxArgs: 4, handler: editBook),
         "search books" : Command(maxArgs: 2, handler: searchBooks),
         "list books" : Command(maxArgs: 1, handler: listBooks),
         "checkout book" : Command(maxArgs: 2, handler: checkoutBook),
@@ -67,35 +67,27 @@ struct BookEngine: Engine {
         return success ? "Book removed successfully!" : "Removing book failed!"
     }
 
-    // Check if we can use the new isbn. If so, remove the old book & authors, then add the new book & authors (if new book succeeds)
-    private func editBook(with argCount: Int, and args: [String]) async -> String? { // Args are isbn, new name, new authors, new isbn, new # of pages
+    private func editBook(with argCount: Int, and args: [String]) async -> String? { // Args are isbn, new name, new authors, new # of pages
         guard args.count >= argCount else {
             return nil
         }
         
-        let oldIsbn = args[0]
-        let newIsbn = args[args.count-2]
-        let newIsbnExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: newIsbn))
+        let bookExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: args[0]))
         // Only continue if we don't need a new isbn or if the new one isn't in use
-        if newIsbnExists && oldIsbn != newIsbn {
-            return "Book with new ISBN already exists."
+        if !bookExists {
+            return "Book with ISBN \(args[0]) does not exist."
         }
         
-        var success = true
-        if oldIsbn != newIsbn { // Remove the book with the old isbn if we are changing
-            let removeBookSuccess = await RedisClient.shared.removeObject(withKey: .bookKey(for: oldIsbn))
-            success = success && removeBookSuccess
-        }
-        let removeAuthorSuccess =  await RedisClient.shared.removeObject(withKey: "authors-\(oldIsbn)") // Authors are removed no matter what so we don't need to diff
-        success = success && removeAuthorSuccess
+        let removeAuthorSuccess = await RedisClient.shared.removeObject(withKey: .authorsKey(for: args[0])) // Authors are removed so we don't need to diff
+        var success = removeAuthorSuccess
         
-        let book = Book(args: Array(args[1...]))
-        let storeSuccess = await RedisClient.shared.storeObject(withKey: .bookKey(for: newIsbn), andData: book.bookPairs, changeExisting: oldIsbn == newIsbn) // We change the existing only if the isbn's match. We don't want to overwrite an existing book already using the new isbn
-        success = success && storeSuccess // book-<new isbn> is the key
+        let book = Book(editArgs: args)
+        let storeSuccess = await RedisClient.shared.storeObject(withKey: .bookKey(for: args[0]), andData: book.bookPairs, changeExisting: true) // We change the existing only if the isbn's match. We don't want to overwrite an existing book already using the new isbn
+        success = success && storeSuccess
         if success {
             for author in book.authors {
-                let addSuccess = await RedisClient.shared.addToArray(author, withKey: "authors-\(newIsbn)")
-                success = success && addSuccess // author-<isbn> is the authors key
+                let addSuccess = await RedisClient.shared.addToArray(author, withKey: .authorsKey(for: args[0]))
+                success = success && addSuccess
             }
         }
                         
