@@ -35,11 +35,8 @@ struct RedisClient {
     public func objectExists(withKey key: String) async -> Bool {
         let exists: Bool = await withCheckedContinuation { continuation in
             redis.hkeys(key) { fields, error in
-                if error != nil {
-                    continuation.resume(returning: true) // Assume it does exist in the case of a failure. This will error on the side of caution when adding a new item.
-                }
                 let hasFields = (fields?.count ?? 0) > 0
-                continuation.resume(returning: hasFields) // Object exists if we have fields
+                continuation.resume(returning: error != nil || hasFields) // Assume object exists if theres an error, and we know it exists if we have fields
             }
         }
 
@@ -55,10 +52,7 @@ struct RedisClient {
         
         let success: Bool = await withCheckedContinuation { continuation in
             redis.hmsetArrayOfKeyValues(key, fieldValuePairs: keyValues) { success, error in
-                if error != nil {
-                    continuation.resume(returning: false)
-                }
-                continuation.resume(returning: success)
+                continuation.resume(returning: error == nil && success)
             }
         }
         
@@ -76,7 +70,18 @@ struct RedisClient {
     }
     
     public func addToHashSet(_ pair: (String, String), withKey key: String, changeExisting: Bool = false) async -> Bool {
-        let success = await storeObject(withKey: key, andData: [pair], changeExisting: changeExisting)
+        // Check for subkey existing
+        let exists: Bool = await withCheckedContinuation { continuation in
+            redis.hget(key, field: pair.0) { response, error in
+                continuation.resume(returning: error != nil || response != nil) // Error on the side of existence if there's an error, and if there's a response it exists
+            }
+        }
+        
+        if exists && !changeExisting {
+            return false
+        }
+        
+        let success = await storeObject(withKey: key, andData: [pair], changeExisting: true) // We are fine with changing the hash set, as we are adding an element to it
                 
         return success
     }

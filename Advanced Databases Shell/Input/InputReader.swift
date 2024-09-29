@@ -23,24 +23,24 @@ struct InputReader {
         print("Quitting:\t\t\t\t \"q\"")
         
         print("\nBooks *****************************************************************************************")
-        print("Adding books:\t\t\t\t \"add book <book name> <authors (comma separated)> <ISBN> <# of pages>\"")
-        print("Removing books:\t\t\t\t \"rm book <ISBN>\"")
-        print("Edit books:\t\t\t\t\t \"edit book <ISBN> <new name> <new authors (comma separated)> <new # of pages>\"")
+        print("Adding books:\t\t\t\t \"add book, <book name>, <authors (comma separated)>, <ISBN>, <# of pages>\"")
+        print("Removing books:\t\t\t\t \"rm book, <ISBN>\"")
+        print("Edit books:\t\t\t\t\t \"edit book, <ISBN>, <new name>, <new authors (comma separated)>, <new # of pages>\"")
         
         print("\nQuerying Books ********************************************************************************")
-        print("Search for books:\t\t\t \"search books <search type (name, author, isbn)> <query>\"")
-        print("List all books (sorted):\t \"list books <sort type (name, author, isbn)>\"")
+        print("Search for books:\t\t\t \"search books, <search type (name, author, isbn)>, <query>\"")
+        print("List all books (sorted):\t \"list books, <sort type (name, author, isbn)>\"")
         
         print("\nBorrowing *************************************************************************************")
-        print("Add Borrower:\t\t\t\t \"add borrower <name> <username> <phone>\"")
-        print("Delete Borrower:\t\t\t \"rm borrower <username>\"")
-        print("Edit Borrower:\t\t\t\t \"edit borrower <username> <new name> <new phone>\"")
-        print("Checkout:\t\t\t\t\t \"checkout book <isbn> <borrower username>\"")
-        print("View book's borrower:\t\t \"borrower of <isbn>\"")
-        print("View # of borrower's books:\t \"borrowed by <username>\"")
+        print("Add Borrower:\t\t\t\t \"add borrower, <name>, <username>, <phone>\"")
+        print("Delete Borrower:\t\t\t \"rm borrower, <username>\"")
+        print("Edit Borrower:\t\t\t\t \"edit borrower, <username>, <new name>, <new phone>\"")
+        print("Checkout:\t\t\t\t\t \"checkout book, <isbn>, <borrower username>\"")
+        print("View book's borrower:\t\t \"borrower of, <isbn>\"")
+        print("View # of borrower's books:\t \"borrowed by, <username>\"")
 
         print("\nQuerying Borrowers ****************************************************************************")
-        print("Search for borrowers:\t\t \"search borrowers <search type (name, username)> <query>\"\n")
+        print("Search for borrowers:\t\t \"search borrowers, <search type (name, username)>, <query>\"\n")
     }
     
     // MARK: - Methods
@@ -49,7 +49,7 @@ struct InputReader {
         // Validate input was obtained & we have args beyond the command
         let input = readLine()
         guard input != nil,
-              input!.split(separator: " ").count > 2  else {
+              input!.split(separator: ", ").count > 1  else { // Need arg beyond command
             if input == "q" {
                 return false
             }
@@ -57,9 +57,9 @@ struct InputReader {
             return true
         }
         
-        let splitInput = input!.split(separator: " ")
-        let command = splitInput[0...1].joined(separator: " ") // Get the first 2 words of the input as the input command
-        let args = splitInput[2...].map { String($0) }
+        let splitInput = input!.split(separator: ", ")
+        let command = String(splitInput[0])
+        let args = splitInput[1...].map { String($0) }
 
         let executionResult = await executeCommand(command, args)
         print(executionResult ?? "The operation failed.\n")

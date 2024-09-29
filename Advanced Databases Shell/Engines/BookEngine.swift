@@ -62,9 +62,10 @@ struct BookEngine: Engine {
             return nil
         }
         
-        let success = await RedisClient.shared.removeObject(withKey: .bookKey(for: args[0])) // book-<isbn> is the key
+        let removeBookSuccess = await RedisClient.shared.removeObject(withKey: .bookKey(for: args[0]))
+        let removeAuthorSuccess = await RedisClient.shared.removeObject(withKey: .authorsKey(for: args[0]))
         
-        return success ? "Book removed successfully!" : "Removing book failed!"
+        return removeBookSuccess && removeAuthorSuccess ? "Book removed successfully!" : "Removing book failed!"
     }
 
     private func editBook(with argCount: Int, and args: [String]) async -> String? { // Args are isbn, new name, new authors, new # of pages
