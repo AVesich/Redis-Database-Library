@@ -35,7 +35,7 @@ struct RedisClient {
     public func objectExists(withKey key: String) async -> Bool {
         let exists: Bool = await withCheckedContinuation { continuation in
             redis.hkeys(key) { fields, error in
-                if let error {
+                if error != nil {
                     continuation.resume(returning: true) // Assume it does exist in the case of a failure. This will error on the side of caution when adding a new item.
                 }
                 let hasFields = (fields?.count ?? 0) > 0
@@ -45,28 +45,9 @@ struct RedisClient {
 
         return exists
     }
-    
-    public func removeObject(withKey key: String) async -> Bool {
-        let success: Bool = await withCheckedContinuation { continuation in
-            redis.del(key) { success, error in
-                continuation.resume(returning: error == nil) // Assume if there was no error, we were successful. We can double-check by validating the # of removed keys by checking if it existed beforehand, but I don't think it's worth doing edge case handling and verification like that for a simple app.
-            }
-        }
-        
-        return success
-    }
-    
+            
     public func storeObject(withKey key: String, andData keyValues: [(String, String)], changeExisting: Bool = false) async -> Bool {
-        let exists: Bool = await withCheckedContinuation { continuation in
-            redis.hkeys(key) { fields, error in
-                if let error {
-                    continuation.resume(returning: true) // Assume it does exist in the case of a failure. This will error on the side of caution when adding a new item.
-                }
-                let hasFields = (fields?.count ?? 0) > 0
-                continuation.resume(returning: hasFields) // Object exists if we have fields
-            }
-        }
-        
+        let exists = await objectExists(withKey: key)
         
         if exists && !changeExisting {
             return false
@@ -82,6 +63,35 @@ struct RedisClient {
         }
         
         return success
+    }
+    
+    public func removeObject(withKey key: String) async -> Bool {
+        let success: Bool = await withCheckedContinuation { continuation in
+            redis.del(key) { success, error in
+                continuation.resume(returning: error == nil) // Assume if there was no error, we were successful. We can double-check by validating the # of removed keys by checking if it existed beforehand, but I don't think it's worth doing edge case handling and verification like that for a simple app.
+            }
+        }
+        
+        return success
+    }
+    
+    public func addToHashSet(_ pair: (String, String), withKey key: String, changeExisting: Bool = false) async -> Bool {
+        let success = await storeObject(withKey: key, andData: [pair], changeExisting: changeExisting)
+                
+        return success
+    }
+    
+    public func getFromHashSet(withKey key: String, andSubKey subKey: String) async -> String? {
+        let result: String? = await withCheckedContinuation { continuation in
+            redis.hget(key, field: subKey) { response, error in
+                if error != nil {
+                    continuation.resume(returning: nil)
+                }
+                continuation.resume(returning: response?.asString)
+            }
+        }
+        
+        return result
     }
     
     public func addToArray(_ value: String, withKey key: String) async -> Bool {

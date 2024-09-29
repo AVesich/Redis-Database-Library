@@ -35,7 +35,7 @@ struct InputReader {
         print("Add Borrower:\t\t\t\t \"add borrower <name> <username> <phone>\"")
         print("Delete Borrower:\t\t\t \"rm borrower <username>\"")
         print("Edit Borrower:\t\t\t\t \"edit borrower <username> <new name> <new username> <new phone>\"")
-        print("Checkout:\t\t\t\t\t \"checkout book <borrower username> <isbn>\"")
+        print("Checkout:\t\t\t\t\t \"checkout book <isbn> <borrower username>\"")
         print("View book's borrower:\t\t \"borrower of <isbn>\"")
         print("View # of borrower's books:\t \"borrowed by <username>\"")
 

@@ -7,6 +7,12 @@
 
 // NOTE: - There is not complete error handling here. We track success throughout multi-operation actions to print an accurate response, but undoing failed operations and preventing further mess-ups is out of scope for many operations.
 
+/*
+ Explanation:
+ Books are stored as hashsets with unique keys. For example, 'book-1' is the key for book with isbn 1 and stores data for that book in the hashset under that key.
+ Borrowing relationship is stored in a separate hashset with key 'borrowers'. One entry has the isbn as the subkey and the borrower as the value.
+*/
+
 import Foundation
 
 struct BookEngine: Engine {
@@ -40,7 +46,7 @@ struct BookEngine: Engine {
         }
         
         let book = Book(args: args)
-        var success = await RedisClient.shared.storeObject(withKey: "book-\(args[args.count-2])", andData: book.bookPairs) // book-<isbn> is the key
+        var success = await RedisClient.shared.storeObject(withKey: .bookKey(for: args[args.count-2]), andData: book.bookPairs) // book-<isbn> is the key
         if success {
             for author in book.authors {
                 let addSuccess = await RedisClient.shared.addToArray(author, withKey: "authors-\(args[args.count-2])")
@@ -52,11 +58,11 @@ struct BookEngine: Engine {
     }
     
     private func removeBook(with argCount: Int, and args: [String]) async -> String? { // Args are isbn
-        guard args.count >= argCount else {
+        guard args.count == argCount else {
             return nil
         }
         
-        let success = await RedisClient.shared.removeObject(withKey: "book-\(args[0])") // book-<isbn> is the key
+        let success = await RedisClient.shared.removeObject(withKey: .bookKey(for: args[0])) // book-<isbn> is the key
         
         return success ? "Book removed successfully!" : "Removing book failed!"
     }
@@ -69,7 +75,7 @@ struct BookEngine: Engine {
         
         let oldIsbn = args[0]
         let newIsbn = args[args.count-2]
-        let newIsbnExists = await RedisClient.shared.objectExists(withKey: "book-\(newIsbn)")
+        let newIsbnExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: newIsbn))
         // Only continue if we don't need a new isbn or if the new one isn't in use
         if newIsbnExists && oldIsbn != newIsbn {
             return "Book with new ISBN already exists."
@@ -77,13 +83,14 @@ struct BookEngine: Engine {
         
         var success = true
         if oldIsbn != newIsbn { // Remove the book with the old isbn if we are changing
-            let removeBookSuccess = await RedisClient.shared.removeObject(withKey: "book-\(args[0])")
-            let removeAuthorSuccess =  await RedisClient.shared.removeObject(withKey: "authors-\(args[0])")
-            success = success && removeBookSuccess && removeAuthorSuccess
+            let removeBookSuccess = await RedisClient.shared.removeObject(withKey: .bookKey(for: oldIsbn))
+            success = success && removeBookSuccess
         }
+        let removeAuthorSuccess =  await RedisClient.shared.removeObject(withKey: "authors-\(oldIsbn)") // Authors are removed no matter what so we don't need to diff
+        success = success && removeAuthorSuccess
         
         let book = Book(args: Array(args[1...]))
-        let storeSuccess = await RedisClient.shared.storeObject(withKey: "book-\(newIsbn)", andData: book.bookPairs, changeExisting: oldIsbn == newIsbn) // We change the existing only if the isbn's match. We don't want to overwrite an existing book already using the new isbn
+        let storeSuccess = await RedisClient.shared.storeObject(withKey: .bookKey(for: newIsbn), andData: book.bookPairs, changeExisting: oldIsbn == newIsbn) // We change the existing only if the isbn's match. We don't want to overwrite an existing book already using the new isbn
         success = success && storeSuccess // book-<new isbn> is the key
         if success {
             for author in book.authors {
@@ -93,7 +100,6 @@ struct BookEngine: Engine {
         }
                         
         return success ? "Book edited successfully!" : "Editing book failed!"
-
     }
     
     // TODO: - Search & List should be about the same
@@ -122,11 +128,34 @@ struct BookEngine: Engine {
         return ""
     }
     
-    private func checkoutBook(with argCount: Int, and args: [String]) async -> String? { // Args are username, book
-        return ""
+    private func checkoutBook(with argCount: Int, and args: [String]) async -> String? { // Args are isbn, username
+        guard args.count == argCount else {
+            return nil
+        }
+        
+        // Ensure the user & book both exist
+        let bookExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: args[0]))
+        let userExists = await RedisClient.shared.objectExists(withKey: .borrowerKey(for: args[1]))
+        var success = bookExists && userExists // We need both the book & borrower to exist to continue
+
+        if success {
+            // This will, by default, fail if we try to change an existing entry. This is desired so we don't add a borrower to a borrowed book
+            let addedBorrower = await RedisClient.shared.addToHashSet((args[0], args[1]), withKey: .borrowingKey)
+            success = success && addedBorrower
+        }
+        
+        return success ? "Book with ISBN \(args[0]) has been checked out to \(args[1])" : "There was a problem checking out the book. Make sure it exists, the user exists, and the book isn't already checked out."
     }
 
     private func borrowerOf(with argCount: Int, and args: [String]) async -> String? { // Args are isbn
-        return ""
+        guard args.count == argCount else {
+            return nil
+        }
+        
+        if let borrower = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: args[0]) {
+            return "\(borrower) is the borrower of the book with ISBN \(args[0])."
+        }
+        
+        return "The borrower for the book with ISBN \(args[0]) cannot be found."
     }
 }

@@ -24,8 +24,8 @@ struct BorrowerEngine: Engine {
         if !validateCommand(command) {
             return nil
         }
-        // TODO: - todo
-        return ""
+
+        return await commands[command]?.handler(commands[command]!.maxArgs, args)
     }
     
     private func addBorrower(with argCount: Int, and args: [String]) async -> String? { // Args are name, username, phone
@@ -34,17 +34,45 @@ struct BorrowerEngine: Engine {
         }
         
         let borrower = Borrower(args: args)
-        let success = await RedisClient.shared.storeObject(withKey: "borrower-\(args[1])", andData: borrower.pairs) // borrower-<username> is the key
+        let success = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: args[1]), andData: borrower.pairs) // borrower-<username> is the key
         
         return success ? "Borrower added successfully!" : "Adding borrower failed! Make sure a borrower with this username doesn't already exist."
     }
     
     private func removeBorrower(with argCount: Int, and args: [String]) async -> String? { // Args are username
-        return ""
+        guard args.count == argCount else {
+            return nil
+        }
+        
+        let success = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0])) // book-<isbn> is the key
+        
+        return success ? "Borrower removed successfully!" : "Removing borrower failed!"
     }
 
     private func editBorrower(with argCount: Int, and args: [String]) async -> String? { // Args are username, new name, new user, new phone
-        return ""
+        guard args.count == argCount else {
+            return nil
+        }
+        
+        let oldUser = args[0]
+        let newUser = args[2]
+        let newUserExists = await RedisClient.shared.objectExists(withKey: .borrowerKey(for: newUser))
+        // Only continue if we don't need a new username or if the new one isn't in use
+        if newUserExists && oldUser != newUser {
+            return "Borrower with new username already exists."
+        }
+        
+        var success = true
+        if oldUser != newUser { // Remove the borrower with the old username if we are changing
+            let removeUserSuccess = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: oldUser))
+            success = success && removeUserSuccess
+        }
+        
+        let borrower = Borrower(args: Array(args[1...]))
+        let storeSuccess = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: newUser), andData: borrower.pairs, changeExisting: oldUser == newUser) // We change the existing only if the user's match. We don't want to overwrite an existing book already using the new isbn
+        success = success && storeSuccess // borrower-<new user> is the key
+                        
+        return success ? "Borrower edited successfully!" : "Editing borrower failed!"
     }
     
     private func borrowedBy(with argCount: Int, and args: [String]) async -> String? { // Args are username
