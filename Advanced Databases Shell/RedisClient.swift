@@ -88,6 +88,21 @@ struct RedisClient {
         return success
     }
     
+    public func incrementInHashSet(_ subKey: String, withKey key: String, incrAmount: Int = 1) async -> Bool {
+        // Check for subkey existing
+        let success: Bool = await withCheckedContinuation { continuation in
+            redis.hincr(key, field: subKey, by: 1) { response, error in
+                continuation.resume(returning: error != nil)
+            }
+        }
+                
+        return success
+    }
+
+    public func decrementInHashSet(_ subKey: String, withKey key: String) async -> Bool {
+        return await incrementInHashSet(subKey, withKey: key, incrAmount: -1)
+    }
+    
     public func getFromHashSet(withKey key: String, andSubKey subKey: String) async -> String? {
         let result: String? = await withCheckedContinuation { continuation in
             redis.hget(key, field: subKey) { response, error in
@@ -159,9 +174,19 @@ struct RedisClient {
     }
     
     // MARK: - ZSets
-    public func addToZSet(_ value: String, withScore score: Int, atKey key: String) async -> Bool {
+    public func addToZSet(_ value: String, withScore score: Int = 1, atKey key: String) async -> Bool {
         let success: Bool = await withCheckedContinuation { continuation in
             redis.zadd(key, tuples: (score, value)) { _, error in
+                continuation.resume(returning: error == nil)
+            }
+        }
+        
+        return success
+    }
+    
+    public func removeFromZSet(_ value: String, withKey key: String) async -> Bool {
+        let success: Bool = await withCheckedContinuation { continuation in
+            redis.zrem(key, members: value) { _, error in
                 continuation.resume(returning: error == nil)
             }
         }
@@ -178,10 +203,11 @@ struct RedisClient {
         
         return success
     }
+
     
     public func getSortedZSetValues(atKey key: String) async -> [String] {
         let values: [String] = await withCheckedContinuation { continuation in
-            redis.zrangebylex(key, min: "", max: "") { responseStrings, _ in
+            redis.zrangebylex(key, min: "-", max: "+") { responseStrings, _ in
                 let values = responseStrings?.compactMap { $0?.asString } ?? [String]()
                 return continuation.resume(returning: values)
             }
@@ -210,6 +236,16 @@ struct RedisClient {
         }
         
         return values
+    }
+    
+    public func getSetSize(withKey key: String) async -> Int {
+        let size: Int = await withCheckedContinuation { continuation in
+            redis.scard(key) { count, _ in
+                continuation.resume(returning: count ?? 0)
+            }
+        }
+        
+        return size
     }
     
     public func removeFromSet(_ value: String, atKey key: String) async -> Bool {

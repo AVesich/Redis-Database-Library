@@ -8,6 +8,9 @@
 extension String {
     
     static let isbnKey = "isbns"
+    static let bookNamesKey = "names"
+    static let pageCountsKey = "page-counts"
+    static let authorsKey = "authors"
     static let borrowingKey = "borrowing"
     static let usernamesKey = "usernames"
 

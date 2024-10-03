@@ -29,7 +29,7 @@ struct InputReader {
         
         print("\nQuerying Books ********************************************************************************")
         print("Search for books:\t\t\t \"search books, <search type (name, author, isbn)>, <query>\"")
-        print("List all books (sorted):\t \"list books, <sort type (name, author, isbn)>\"")
+        print("List all books (sorted):\t \"list books, <sort type (name, author, isbn, page count)>\"")
         
         print("\nBorrowing *************************************************************************************")
         print("Add Borrower:\t\t\t\t \"add borrower, <name>, <username>, <phone>\"")
