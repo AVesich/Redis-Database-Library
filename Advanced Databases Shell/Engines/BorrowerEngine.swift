@@ -34,12 +34,12 @@ struct BorrowerEngine: Engine {
         }
         
         let borrower = Borrower(args: args)
-        let success = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: args[1]), andData: borrower.pairs) // borrower-<username> is the key
+        let addSuccess = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: args[1]), andData: borrower.pairs) // borrower-<username> is the key
+        if addSuccess {
+            let _ = await RedisClient.shared.addToSet(args[1], atKey: .usernamesKey(for: args[0]))
+        }
         
-        // new
-        let _ = await RedisClient.shared.addToSet(args[1], atKey: .usernamesKey(for: args[0]))
-        
-        return success ? "Borrower added successfully!" : "Adding borrower failed! Make sure a borrower with this username doesn't already exist."
+        return addSuccess ? "Borrower added successfully!" : "Adding borrower failed! Make sure a borrower with this username doesn't already exist."
     }
     
     private func removeBorrower(with argCount: Int, and args: [String]) async -> String? { // Args are username
@@ -47,27 +47,20 @@ struct BorrowerEngine: Engine {
             return nil
         }
         
-        var success = true
         if let name = await RedisClient.shared.getFromHashSet(withKey: .borrowerKey(for: args[0]), andSubKey: "name") {
-            let removeUsernameSuccess = await RedisClient.shared.removeFromSet(args[0], atKey: .usernamesKey(for: name))
-            success = success && removeUsernameSuccess
+            let _ = await RedisClient.shared.removeFromSet(args[0], atKey: .usernamesKey(for: name))
         }
         
-        let removalSuccess = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0]))
-        success = success && removalSuccess
+        let _ = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0]))
 
         // "return" books
         let borrowedBooks = await RedisClient.shared.getAllKeysFromHashSet(withKey: .borrowedByKey(for: args[0]))
         for isbn in borrowedBooks {
-            let returnedBookSucceeded = await RedisClient.shared.removeFromHashSet(withKey: .borrowingKey, andSubKey: isbn)
-            success = success && returnedBookSucceeded
+            let _ = await RedisClient.shared.removeFromHashSet(withKey: .borrowingKey, andSubKey: isbn)
         }
-        if success { // Only remove the list of books this borrower has borrowed if we succeeded at checking out each book. That way in case of a failure we can continuously rerun without any issues
-            let removeBorrowedListSuccess = await RedisClient.shared.removeObject(withKey: .borrowedByKey(for: args[0]))
-            success = success && removeBorrowedListSuccess
-        }
+        let _ = await RedisClient.shared.removeObject(withKey: .borrowedByKey(for: args[0]))
                 
-        return success ? "Borrower removed successfully!" : "Removing borrower failed!"
+        return "Borrower removed successfully!"
     }
 
     private func editBorrower(with argCount: Int, and args: [String]) async -> String? { // Args are username, new name, new phone
