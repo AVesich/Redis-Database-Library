@@ -48,7 +48,7 @@ struct BookEngine: Engine {
         let book = Book(args: args)
         var success = await RedisClient.shared.storeObject(withKey: .bookKey(for: args[args.count-2]), andData: book.bookPairs) // book-<isbn> is the key
         if success {
-            let addIsbnSuccess = await RedisClient.shared.
+//            let addIsbnSuccess = await RedisClient.shared.
             for author in book.authors {
                 let addAuthorSuccess = await RedisClient.shared.addToArray(author, withKey: "authors-\(args[args.count-2])")
                 success = success && addAuthorSuccess
@@ -112,20 +112,21 @@ struct BookEngine: Engine {
             return nil
         }
         
-        var response = "No results were found."
+        let query = args[1]
         
-//        switch arg[0] {
-//        case "name":
-//            break
-//        case "author":
-//            break
-//        case "isbn":
-//            break
-//        default:
-//            response = "Invalid search type, please use 'name', 'author', or 'isbn'."
-//        }
-        
-        return response
+        switch args[0] {
+        case "name":
+            return await getBooksStoredAtKey(.booksWithNameKey(for: query))
+        case "author":
+            return await getBooksStoredAtKey(.booksByAuthorKey(for: query))
+        case "isbn":
+            if await RedisClient.shared.objectExists(withKey: .bookKey(for: query)) { // Check if the user exists
+                return await printBookWithISBN(query)
+            }
+            return "Book with isbn \(query) not found."
+        default:
+            return "Invalid search type, please use 'name', 'author', or 'isbn'."
+        }
     }
     
     private func listBooks(with argCount: Int, and args: [String]) async -> String? { // Args are sort type
@@ -171,4 +172,59 @@ struct BookEngine: Engine {
         
         return "The borrower for the book with ISBN \(args[0]) cannot be found."
     }
+    
+    // MARK: - Helpers
+    private func getBooksSortedByName() async -> [String] {
+        
+        
+        return [String]()
+        
+
+//        if let bookText = await getBooksStoredAtKey(.booksWithNameKey(for: name)) {
+//            return bookText
+//        }
+//        return "No books with name \(name) found."
+    }
+        
+    private func getBooksSortedByAuthor() async -> [String] {
+        return [String]()
+    }
+
+    
+    private func getBooksSortedByPageCount() async -> [String] {
+        return [String]()
+    }
+    
+    private func getBooksStoredAtKey(_ key: String) async -> String? {
+        let booksWithName = await RedisClient.shared.getValuesFromArray(withKey: key)
+        
+        if booksWithName.isEmpty {
+            return nil
+        }
+        
+        var result = ""
+        for isbn in booksWithName {
+            let bookText = await printBookWithISBN(isbn)
+            result.append("\(bookText)\n")
+        }
+        return result
+    }
+    
+    private func printBookWithISBN(_ isbn: String) async -> String {
+        let name = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "name")
+        let bookIsbn = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "isbn")
+        let authors = await RedisClient.shared.getValuesFromArray(withKey: .authorsKey(for: isbn))
+        let numPages = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "pages")
+        return "\(name!), \(bookIsbn!), \(authors.isEmpty ? "No authors" : authors.joined(separator: ", ")), \(numPages!)"
+    }
 }
+
+/*
+ Zset of book names for lexical sorting
+ Set of isbns stored for each book name
+ 
+ Zset of page counts for lexical sorting
+ Set of isbns stored for each page count
+ 
+ Zset of isbs for lexical sorting
+ */

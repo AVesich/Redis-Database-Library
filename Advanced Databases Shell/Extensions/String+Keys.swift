@@ -9,6 +9,7 @@ extension String {
     
     static let isbnKey = "isbns"
     static let borrowingKey = "borrowing"
+    static let usernamesKey = "usernames"
 
     static func bookKey(for isbn: String) -> String {
         return "book-\(isbn)"
@@ -24,5 +25,21 @@ extension String {
     
     static func borrowedByKey(for username: String) -> String {
         return "borrowed-by-\(username)"
+    }
+    
+    static func usernamesKey(for name: String) -> String {
+        return "usernames-\(name)"
+    }
+    
+    static func booksWithNameKey(for name: String) -> String {
+        return "books-named-\(name)"
+    }
+    
+    static func booksByAuthorKey(for author: String) -> String {
+        return "books-by-\(author)"
+    }
+
+    static func booksByPagesKey(for numPages: String) -> String {
+        return "books-with-\(numPages)-pages"
     }
 }

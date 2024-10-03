@@ -36,6 +36,9 @@ struct BorrowerEngine: Engine {
         let borrower = Borrower(args: args)
         let success = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: args[1]), andData: borrower.pairs) // borrower-<username> is the key
         
+        // new
+        let _ = await RedisClient.shared.addToSet(args[1], atKey: .usernamesKey(for: args[0]))
+        
         return success ? "Borrower added successfully!" : "Adding borrower failed! Make sure a borrower with this username doesn't already exist."
     }
     
@@ -44,7 +47,14 @@ struct BorrowerEngine: Engine {
             return nil
         }
         
-        var success = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0]))
+        var success = true
+        if let name = await RedisClient.shared.getFromHashSet(withKey: .borrowerKey(for: args[0]), andSubKey: "name") {
+            let removeUsernameSuccess = await RedisClient.shared.removeFromSet(args[0], atKey: .usernamesKey(for: name))
+            success = success && removeUsernameSuccess
+        }
+        
+        let removalSuccess = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0]))
+        success = success && removalSuccess
 
         // "return" books
         let borrowedBooks = await RedisClient.shared.getAllKeysFromHashSet(withKey: .borrowedByKey(for: args[0]))
@@ -56,7 +66,7 @@ struct BorrowerEngine: Engine {
             let removeBorrowedListSuccess = await RedisClient.shared.removeObject(withKey: .borrowedByKey(for: args[0]))
             success = success && removeBorrowedListSuccess
         }
-        
+                
         return success ? "Borrower removed successfully!" : "Removing borrower failed!"
     }
 
@@ -71,8 +81,13 @@ struct BorrowerEngine: Engine {
             return "Borrower with username \(args[0]) does not exist."
         }
         
+        let _ = await RedisClient.shared.addToSet(args[0], atKey: .usernamesKey(for: args[1])) // Add the username to the new name's username set
+        if let name = await RedisClient.shared.getFromHashSet(withKey: .borrowerKey(for: args[0]), andSubKey: "name") { // Get existing name
+            let _ = await RedisClient.shared.removeFromSet(args[0], atKey: .usernamesKey(for: name))
+        }
+        
         let borrower = Borrower(args: [args[1], args[0], args[2]]) // Swap user and new name
-        let success = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: args[0]), andData: borrower.pairs, changeExisting: true) // We change the existing only if the user's match. We don't want to overwrite an existing book already using the new isbn
+        let success = await RedisClient.shared.storeObject(withKey: .borrowerKey(for: args[0]), andData: borrower.pairs, changeExisting: true)
                         
         return success ? "Borrower edited successfully!" : "Editing borrower failed!"
     }
@@ -89,6 +104,45 @@ struct BorrowerEngine: Engine {
     }
     
     private func search(with argCount: Int, and args: [String]) async -> String? { // Args are search type, query
-        return ""
+        guard args.count == argCount else {
+            return nil
+        }
+        
+        let searchType = args[0]
+        let query = args[1]
+        
+        if searchType == "name" {
+            return await printUsernamesForName(query)
+        } else if searchType == "username" {
+            if await RedisClient.shared.objectExists(withKey: .borrowerKey(for: query)) { // Check if the user exists
+                return await printBorrowerWithUsername(query)
+            }
+            return "User with username \(query) not found."
+        }
+        
+        return "Invalid search type entered. Please use 'name' or 'username'."
+    }
+    
+    // MARK: - Helpers
+    private func printUsernamesForName(_ name: String) async -> String {
+        let usernames = await RedisClient.shared.getValuesFromSet(withKey: .usernamesKey(for: name))
+        
+        if usernames.isEmpty {
+            return "No usernames found for name \(name)."
+        }
+        
+        var result = ""
+        for username in usernames {
+            let borrowerText = await printBorrowerWithUsername(username)
+            result.append("\(borrowerText)\n")
+        }
+        return result
+    }
+    
+    private func printBorrowerWithUsername(_ username: String) async -> String {
+        let name = await RedisClient.shared.getFromHashSet(withKey: .borrowerKey(for: username), andSubKey: "name")
+        let user = await RedisClient.shared.getFromHashSet(withKey: .borrowerKey(for: username), andSubKey: "username")
+        let phone = await RedisClient.shared.getFromHashSet(withKey: .borrowerKey(for: username), andSubKey: "phone")
+        return "\(name!), \(user!), \(phone!)"
     }
 }
