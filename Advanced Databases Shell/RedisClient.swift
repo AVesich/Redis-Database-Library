@@ -181,7 +181,7 @@ struct RedisClient {
     
     public func getSortedZSetValues(atKey key: String) async -> [String] {
         let values: [String] = await withCheckedContinuation { continuation in
-            redis.zrangebylex(key, min: "a", max: "b") { responseStrings, _ in
+            redis.zrangebylex(key, min: "", max: "") { responseStrings, _ in
                 let values = responseStrings?.compactMap { $0?.asString } ?? [String]()
                 return continuation.resume(returning: values)
             }

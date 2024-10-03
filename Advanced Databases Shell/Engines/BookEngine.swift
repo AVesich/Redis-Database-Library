@@ -45,11 +45,16 @@ struct BookEngine: Engine {
             return nil
         }
         
+        let isbn = args[args.count-2]
         let book = Book(args: args)
-        let addSuccess = await RedisClient.shared.storeObject(withKey: .bookKey(for: args[args.count-2]), andData: book.bookPairs) // book-<isbn> is the key
+        let addSuccess = await RedisClient.shared.storeObject(withKey: .bookKey(for: isbn), andData: book.bookPairs) // book-<isbn> is the key
         if addSuccess {
+            let _ = await RedisClient.shared.addToSet(isbn, atKey: .booksWithNameKey(for: args[0]))
+            let _ = await RedisClient.shared.addToSet(isbn, atKey: .booksByPagesKey(for: args.last!))
+            let _ = await RedisClient.shared.addToSet(isbn, atKey: .isbnKey)
             for author in book.authors {
-                let _ = await RedisClient.shared.addToArray(author, withKey: "authors-\(args[args.count-2])")
+                let _ = await RedisClient.shared.addToArray(author, withKey: "authors-\(isbn)")
+                let _ = await RedisClient.shared.addToSet(isbn, atKey: .booksByAuthorKey(for: author))
             }
         }
         
@@ -61,12 +66,26 @@ struct BookEngine: Engine {
             return nil
         }
         
-        let _ = await RedisClient.shared.removeObject(withKey: .bookKey(for: args[0]))
-        let _ =  await RedisClient.shared.removeObject(withKey: .authorsKey(for: args[0]))
+        let isbn = args[0]
         
-        if let borrower = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: args[0]) {
-            let _ = await RedisClient.shared.removeFromHashSet(withKey: .borrowedByKey(for: borrower), andSubKey: args[0])
-            let _ = await RedisClient.shared.removeFromHashSet(withKey: .borrowingKey, andSubKey: args[0])
+        if let name = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "name"),
+           let numPages = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "pages") {
+            let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .booksWithNameKey(for: name))
+            let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .booksByPagesKey(for: numPages))
+            
+            let authors = await RedisClient.shared.getValuesFromArray(withKey: .authorsKey(for: isbn))
+            for author in authors {
+                let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .booksByAuthorKey(for: author))
+            }
+        }
+
+        let _ = await RedisClient.shared.removeObject(withKey: .bookKey(for: isbn))
+        let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .isbnKey)
+        let _ =  await RedisClient.shared.removeObject(withKey: .authorsKey(for: isbn))
+                
+        if let borrower = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: isbn) {
+            let _ = await RedisClient.shared.removeFromHashSet(withKey: .borrowedByKey(for: borrower), andSubKey: isbn)
+            let _ = await RedisClient.shared.removeFromHashSet(withKey: .borrowingKey, andSubKey: isbn)
         }
 
         return "Book removed successfully!"
@@ -77,21 +96,41 @@ struct BookEngine: Engine {
             return nil
         }
         
-        let bookExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: args[0]))
+        let isbn = args[0]
+        let bookExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: isbn))
         // Only continue if we don't need a new isbn or if the new one isn't in use
         if !bookExists {
-            return "Book with ISBN \(args[0]) does not exist."
+            return "Book with ISBN \(isbn) does not exist."
         }
         
-        let _ = await RedisClient.shared.removeObject(withKey: .authorsKey(for: args[0])) // Authors are removed so we don't need to diff
-        
+        // Remove old data
+        if let name = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "name"),
+           let numPages = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "pages") {
+            let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .booksWithNameKey(for: name))
+            let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .booksByPagesKey(for: numPages))
+            
+            let authors = await RedisClient.shared.getValuesFromArray(withKey: .authorsKey(for: isbn))
+            for author in authors {
+                let _ = await RedisClient.shared.removeFromSet(isbn, atKey: .booksByAuthorKey(for: author))
+            }
+        }
+        let _ = await RedisClient.shared.removeObject(withKey: .authorsKey(for: isbn)) // Authors are removed so we don't need to diff
+                
+        // Edit/Re-add data
         let book = Book(editArgs: args)
-        let _ = await RedisClient.shared.storeObject(withKey: .bookKey(for: args[0]), andData: book.bookPairs, changeExisting: true) // We change the existing only if the isbn's match. We don't want to overwrite an existing book already using the new isbn
-        for author in book.authors {
-            let _ = await RedisClient.shared.addToArray(author, withKey: .authorsKey(for: args[0]))
-        }
-        if let borrowerUsername = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: args[0]) {
-            let _ = await RedisClient.shared.addToHashSet((args[0], args[1]), withKey: .borrowedByKey(for: borrowerUsername), changeExisting: true)
+        let editSuccess = await RedisClient.shared.storeObject(withKey: .bookKey(for: isbn), andData: book.bookPairs, changeExisting: true) // We change the existing only if the isbn's match. We don't want to overwrite an existing book already using the new isbn
+        if editSuccess {
+            let _ = await RedisClient.shared.addToSet(isbn, atKey: .booksWithNameKey(for: args[1]))
+            let _ = await RedisClient.shared.addToSet(isbn, atKey: .booksByPagesKey(for: args.last!))
+            for author in book.authors {
+                let _ = await RedisClient.shared.addToArray(author, withKey: "authors-\(isbn)")
+                let _ = await RedisClient.shared.addToSet(isbn, atKey: .booksByAuthorKey(for: author))
+            }
+            
+            // Update borrowed
+            if let borrowerUsername = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: isbn) {
+                let _ = await RedisClient.shared.addToHashSet((isbn, args[1]), withKey: .borrowedByKey(for: borrowerUsername), changeExisting: true)
+            }
         }
                         
         return "Book edited successfully!"
@@ -107,11 +146,11 @@ struct BookEngine: Engine {
         
         switch args[0] {
         case "name":
-            return await getBooksStoredAtKey(.booksWithNameKey(for: query))
+            return await getBooksStoredAtKey(.booksWithNameKey(for: query)) ?? "No books with name \(query) were found."
         case "author":
-            return await getBooksStoredAtKey(.booksByAuthorKey(for: query))
+            return await getBooksStoredAtKey(.booksByAuthorKey(for: query)) ?? "No books by author \(query) were found."
         case "isbn":
-            if await RedisClient.shared.objectExists(withKey: .bookKey(for: query)) { // Check if the user exists
+            if await RedisClient.shared.objectExists(withKey: .bookKey(for: query)) { // Check if the book exists
                 return await printBookWithISBN(query)
             }
             return "Book with isbn \(query) not found."
@@ -187,7 +226,7 @@ struct BookEngine: Engine {
     }
     
     private func getBooksStoredAtKey(_ key: String) async -> String? {
-        let booksWithName = await RedisClient.shared.getValuesFromArray(withKey: key)
+        let booksWithName = await RedisClient.shared.getValuesFromSet(withKey: key)
         
         if booksWithName.isEmpty {
             return nil
