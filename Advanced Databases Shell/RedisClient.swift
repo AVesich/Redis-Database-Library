@@ -32,6 +32,7 @@ struct RedisClient {
         }
     }
     
+    // MARK: - Objects
     public func objectExists(withKey key: String) async -> Bool {
         let exists: Bool = await withCheckedContinuation { continuation in
             redis.hkeys(key) { fields, error in
@@ -69,6 +70,7 @@ struct RedisClient {
         return success
     }
     
+    // MARK: - HashSets
     public func addToHashSet(_ pair: (String, String), withKey key: String, changeExisting: Bool = false) async -> Bool {
         // Check for subkey existing
         let exists: Bool = await withCheckedContinuation { continuation in
@@ -99,6 +101,39 @@ struct RedisClient {
         return result
     }
     
+    public func getAllKeysFromHashSet(withKey key: String) async -> [String] {
+        let result: [String] = await withCheckedContinuation { continuation in
+            redis.hkeys(key) { responseStrings, _ in
+                let values = responseStrings ?? [String]()
+                return continuation.resume(returning: values)
+            }
+        }
+        
+        return result
+    }
+    
+    public func getAllValuesFromHashSet(withKey key: String) async -> [String] {
+        let result: [String] = await withCheckedContinuation { continuation in
+            redis.hvals(key) { responseStrings, _ in
+                let values = responseStrings?.compactMap { $0?.asString } ?? [String]()
+                return continuation.resume(returning: values)
+            }
+        }
+        
+        return result
+    }
+
+    public func removeFromHashSet(withKey key: String, andSubKey subKey: String) async -> Bool {
+        let success: Bool = await withCheckedContinuation { continuation in
+            redis.hdel(key, fields: subKey) { numRemoved, error in
+                continuation.resume(returning: error == nil && numRemoved != nil)
+            }
+        }
+        
+        return success
+    }
+        
+    // MARK: - Arrays
     public func addToArray(_ value: String, withKey key: String) async -> Bool {
         let success: Bool = await withCheckedContinuation { continuation in
             redis.rpush(key, values: value) { afterLength, error in
@@ -111,6 +146,50 @@ struct RedisClient {
         
         return success
     }
+    
+    public func getValuesFromArray(withKey key: String) async -> [String] {
+        let values: [String] = await withCheckedContinuation { continuation in
+            redis.lrange(key, start: 0, end: -1) { responseStrings, _ in
+                let values = responseStrings?.compactMap { $0?.asString } ?? [String]()
+                return continuation.resume(returning: values)
+            }
+        }
+        
+        return values
+    }
+        
+    // MARK: - ZSets
+    public func addToZSet(_ value: String, withScore score: Int, atKey key: String) async -> Bool {
+        let success: Bool = await withCheckedContinuation { continuation in
+            redis.zadd(key, tuples: (score, value)) { _, error in
+                continuation.resume(returning: error == nil)
+            }
+        }
+        
+        return success
+    }
+    
+    public func removeFromZSet(withKey key: String, usingScore score: Int) async -> Bool {
+        let success: Bool = await withCheckedContinuation { continuation in
+            redis.zremrangebyscore(key, min: String(score), max: String(score)) { _, error in
+                continuation.resume(returning: error == nil)
+            }
+        }
+        
+        return success
+    }
+    
+//    public func getArrayValues(withKey key: String) async -> (Bool, [String]) {
+//        let results: (Bool, [String]) = await withCheckedContinuation { continuation in
+//            redis.lrange(key, start: 0, end: -1) { responseStrings, error in
+//                let values = responseStrings?.compactMap { $0?.asString } ?? [String]()
+//                let success = error == nil
+//                return continuation.resume(returning: (success, values))
+//            }
+//        }
+//        
+//        return results
+//    }
     
 //    public func getObjectsFromHSet(withKeyPredicate predicate: String, andField field: String) async -> [String] {
 //        let results: [String] = await withCheckedContinuation { continuation in

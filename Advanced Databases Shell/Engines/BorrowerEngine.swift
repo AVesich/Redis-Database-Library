@@ -44,7 +44,18 @@ struct BorrowerEngine: Engine {
             return nil
         }
         
-        let success = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0])) // book-<isbn> is the key
+        var success = await RedisClient.shared.removeObject(withKey: .borrowerKey(for: args[0]))
+
+        // "return" books
+        let borrowedBooks = await RedisClient.shared.getAllKeysFromHashSet(withKey: .borrowedByKey(for: args[0]))
+        for isbn in borrowedBooks {
+            let returnedBookSucceeded = await RedisClient.shared.removeFromHashSet(withKey: .borrowingKey, andSubKey: isbn)
+            success = success && returnedBookSucceeded
+        }
+        if success { // Only remove the list of books this borrower has borrowed if we succeeded at checking out each book. That way in case of a failure we can continuously rerun without any issues
+            let removeBorrowedListSuccess = await RedisClient.shared.removeObject(withKey: .borrowedByKey(for: args[0]))
+            success = success && removeBorrowedListSuccess
+        }
         
         return success ? "Borrower removed successfully!" : "Removing borrower failed!"
     }
@@ -67,7 +78,14 @@ struct BorrowerEngine: Engine {
     }
     
     private func borrowedBy(with argCount: Int, and args: [String]) async -> String? { // Args are username
-        return ""
+        guard args.count == argCount else {
+            return nil
+        }
+        
+        let username = args[0]
+        let books = await RedisClient.shared.getAllValuesFromHashSet(withKey: .borrowedByKey(for: username))
+        
+        return (books.count > 0) ? "Books checkout out by \(username): \(books.joined(separator: ", "))" : "No books found for the borrower with username \(username)."
     }
     
     private func search(with argCount: Int, and args: [String]) async -> String? { // Args are search type, query

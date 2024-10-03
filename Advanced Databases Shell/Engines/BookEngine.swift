@@ -48,9 +48,10 @@ struct BookEngine: Engine {
         let book = Book(args: args)
         var success = await RedisClient.shared.storeObject(withKey: .bookKey(for: args[args.count-2]), andData: book.bookPairs) // book-<isbn> is the key
         if success {
+            let addIsbnSuccess = await RedisClient.shared.
             for author in book.authors {
-                let addSuccess = await RedisClient.shared.addToArray(author, withKey: "authors-\(args[args.count-2])")
-                success = success && addSuccess // author-<isbn> is the authors key
+                let addAuthorSuccess = await RedisClient.shared.addToArray(author, withKey: "authors-\(args[args.count-2])")
+                success = success && addAuthorSuccess
             }
         }
         
@@ -62,10 +63,17 @@ struct BookEngine: Engine {
             return nil
         }
         
-        let removeBookSuccess = await RedisClient.shared.removeObject(withKey: .bookKey(for: args[0]))
-        let removeAuthorSuccess = await RedisClient.shared.removeObject(withKey: .authorsKey(for: args[0]))
+        var success = await RedisClient.shared.removeObject(withKey: .bookKey(for: args[0]))
+        let removeAuthorsSuccess =  (await RedisClient.shared.removeObject(withKey: .authorsKey(for: args[0])))
+        success = success && removeAuthorsSuccess
         
-        return removeBookSuccess && removeAuthorSuccess ? "Book removed successfully!" : "Removing book failed!"
+        if let borrower = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: args[0]) {
+            let removedFromBorrowersListSuccess = (await RedisClient.shared.removeFromHashSet(withKey: .borrowedByKey(for: borrower), andSubKey: args[0]))
+            let removedFromBorrowedListSuccess = (await RedisClient.shared.removeFromHashSet(withKey: .borrowingKey, andSubKey: args[0]))
+            success = success && removedFromBorrowersListSuccess && removedFromBorrowedListSuccess
+        }
+
+        return success ? "Book removed successfully!" : "Removing book failed!"
     }
 
     private func editBook(with argCount: Int, and args: [String]) async -> String? { // Args are isbn, new name, new authors, new # of pages
@@ -89,6 +97,9 @@ struct BookEngine: Engine {
             for author in book.authors {
                 let addSuccess = await RedisClient.shared.addToArray(author, withKey: .authorsKey(for: args[0]))
                 success = success && addSuccess
+            }
+            if let borrowerUsername = await RedisClient.shared.getFromHashSet(withKey: .borrowingKey, andSubKey: args[0]) {
+                let updateBorrowedListSuccess = await RedisClient.shared.addToHashSet((args[0], args[1]), withKey: .borrowedByKey(for: borrowerUsername), changeExisting: true)
             }
         }
                         
@@ -126,18 +137,27 @@ struct BookEngine: Engine {
             return nil
         }
         
+        let isbn = args[0]
+        let username = args[1]
+        
         // Ensure the user & book both exist
-        let bookExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: args[0]))
-        let userExists = await RedisClient.shared.objectExists(withKey: .borrowerKey(for: args[1]))
+        let bookExists = await RedisClient.shared.objectExists(withKey: .bookKey(for: isbn))
+        let userExists = await RedisClient.shared.objectExists(withKey: .borrowerKey(for: username))
         var success = bookExists && userExists // We need both the book & borrower to exist to continue
 
-        if success {
+        if success, let bookName = await RedisClient.shared.getFromHashSet(withKey: .bookKey(for: isbn), andSubKey: "name") {
             // This will, by default, fail if we try to change an existing entry. This is desired so we don't add a borrower to a borrowed book
-            let addedBorrower = await RedisClient.shared.addToHashSet((args[0], args[1]), withKey: .borrowingKey)
-            success = success && addedBorrower
+            let addedToBorrowing = await RedisClient.shared.addToHashSet((isbn, username), withKey: .borrowingKey)
+            success = success && addedToBorrowing
+            if addedToBorrowing { // Prevent double-counting adding to user's list of borrowed books
+                let addedToBorrowersList = await RedisClient.shared.addToHashSet((isbn, bookName), withKey: .borrowedByKey(for: username))
+                success = success && addedToBorrowersList
+            }
+        } else {
+            return success ? "Book with isbn \(isbn) cannot be found." : "There was a problem checking out the book. Make sure it exists, the user exists, and the book isn't already checked out."
         }
         
-        return success ? "Book with ISBN \(args[0]) has been checked out to \(args[1])" : "There was a problem checking out the book. Make sure it exists, the user exists, and the book isn't already checked out."
+        return success ? "Book with ISBN \(isbn) has been checked out to \(username)" : "There was a problem checking out the book. Make sure it exists, the user exists, and the book isn't already checked out."
     }
 
     private func borrowerOf(with argCount: Int, and args: [String]) async -> String? { // Args are isbn
